@@ -16,13 +16,19 @@ const PROPERTY_TYPE_MULTIPLIER = {
 };
 
 const FURNISHING_MULTIPLIER = {
-    Unfurnished:     0.92,  // 8% discount — buyer must furnish
-    'Semi-furnished': 1.00, // Base
-    Furnished:       1.10,  // 10% premium — move-in ready
+    Unfurnished:     0.92,
+    'Semi-furnished': 1.00,
+    Furnished:       1.10,
+};
+
+const LOCATION_MULTIPLIER = {
+    Rural:    0.85,   // -15% outskirts discount
+    Suburban: 1.00,   // Base
+    Urban:    1.15,   // +15% city centre premium
+    Downtown: 1.25,   // +25% premium downtown
 };
 
 const FLOOR_ADJUSTMENT = (numFloors) => {
-    // Each additional floor beyond 1 adds 3.5% to the base price
     const extra = Math.max(0, parseInt(numFloors, 10) - 1);
     return 1 + extra * 0.035;
 };
@@ -41,26 +47,33 @@ exports.makePrediction = async (req, res) => {
         const mlResponse = await axios.post('http://localhost:5001/predict', inputData);
         const { prediction: basePrediction, model_info } = mlResponse.data;
 
-        // 2️⃣  Apply categorical & numeric multipliers
+        // 2  Apply categorical & numeric multipliers
         const propertyMultiplier = PROPERTY_TYPE_MULTIPLIER[inputData.property_type] ?? 1.00;
         const furnishMultiplier  = FURNISHING_MULTIPLIER[inputData.furnishing]       ?? 1.00;
         const floorMultiplier    = FLOOR_ADJUSTMENT(inputData.num_floors             ?? 1);
+        const locationMultiplier = LOCATION_MULTIPLIER[inputData.location]           ?? 1.00;
 
-        const finalPrediction = basePrediction
+        // Clamp base prediction
+        const MIN_PRICE_USD = 100000;
+        const safePrediction = Math.max(basePrediction, MIN_PRICE_USD);
+
+        const finalPrediction = safePrediction
             * propertyMultiplier
             * furnishMultiplier
-            * floorMultiplier;
+            * floorMultiplier
+            * locationMultiplier;
 
-        // 3️⃣  Build a human-readable breakdown for the frontend
+        // 3  Breakdown
         const breakdown = {
-            basePrediction: Math.round(basePrediction),
+            basePrediction:  Math.round(safePrediction),
             propertyTypeAdj: `${((propertyMultiplier - 1) * 100).toFixed(1)}%`,
             furnishingAdj:   `${((furnishMultiplier  - 1) * 100).toFixed(1)}%`,
             floorsAdj:       `${((floorMultiplier    - 1) * 100).toFixed(1)}%`,
-            totalMultiplier: (propertyMultiplier * furnishMultiplier * floorMultiplier).toFixed(4),
+            locationAdj:     `${((locationMultiplier - 1) * 100).toFixed(1)}%`,
+            totalMultiplier: (propertyMultiplier * furnishMultiplier * floorMultiplier * locationMultiplier).toFixed(4),
         };
 
-        // 4️⃣  Persist to MongoDB
+        // 4  Persist to MongoDB
         const newPrediction = await Prediction.create({
             inputData,
             prediction: Math.round(finalPrediction),

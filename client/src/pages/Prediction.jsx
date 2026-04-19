@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import {
     Loader2, CheckCircle2, TrendingUp, Info, MapPin,
@@ -9,9 +9,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
 import { toINR, fullINR, compactINR } from '../utils/currency';
 
-/* â”€â”€â”€ Multiplier tables (mirrors backend) â”€â”€â”€ */
+/* Multiplier tables (mirrors backend) */
 const PROPERTY_TYPE_MULT = { Apartment: 1.00, House: 1.12, Villa: 1.35, Penthouse: 1.55 };
 const FURNISHING_MULT    = { Unfurnished: 0.92, 'Semi-furnished': 1.00, Furnished: 1.10 };
+const LOCATION_MULT      = { Rural: 0.85, Suburban: 1.00, Urban: 1.15, Downtown: 1.25 };
 const floorMult = (n) => 1 + Math.max(0, parseInt(n, 10) - 1) * 0.035;
 
 const adjLabel = (mult) => {
@@ -21,7 +22,7 @@ const adjLabel = (mult) => {
     return              { text: 'Base',       icon: Minus,          cls: 'text-slate-400'  };
 };
 
-/* â”€â”€â”€ Sub-components â”€â”€â”€ */
+/* Sub-components */
 const SectionTitle = ({ letter, color, label, note }) => (
     <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-3 font-bold text-base text-white">
@@ -32,10 +33,10 @@ const SectionTitle = ({ letter, color, label, note }) => (
     </div>
 );
 
-const Field = ({ label, name, value, onChange, placeholder, textMuted }) => (
+const Field = ({ label, name, value, onChange, placeholder, textMuted, min = '0' }) => (
     <div className="space-y-2">
         <label className={`block text-xs font-black uppercase tracking-widest ${textMuted}`}>{label}</label>
-        <input type="number" name={name} value={value} onChange={onChange} placeholder={placeholder} required className="field" />
+        <input type="number" name={name} value={value} onChange={onChange} placeholder={placeholder} min={min} required className="field" />
     </div>
 );
 
@@ -44,15 +45,18 @@ const MultiplierBadge = ({ mult, note }) => {
     return (
         <div className={`flex items-center gap-1.5 text-xs font-black ${adj.cls}`}>
             <adj.icon size={12} /> {adj.text} price adjustment
-            {note && <span className="text-slate-500 font-medium ml-1">â€” {note}</span>}
+            {note && <span className="text-slate-500 font-medium ml-1">{note}</span>}
         </div>
     );
 };
 
 const BreakdownRow = ({ label, value, highlight, textHead, rowBg }) => {
-    const isPos = value?.startsWith('+') || value?.startsWith('â‚¹');
+    const isPos = value?.startsWith('+');
     const isNeg = value?.startsWith('-');
-    const valColor = highlight ? (isNeg ? 'text-rose-400' : isPos && !value?.startsWith('â‚¹') ? 'text-emerald-400' : 'text-slate-300') : '';
+    const isINR = value?.startsWith('\u20B9');
+    const valColor = highlight
+        ? (isNeg ? 'text-rose-400' : (!isINR && isPos) ? 'text-emerald-400' : 'text-slate-300')
+        : '';
     return (
         <div className={`flex items-center justify-between px-4 py-3 rounded-xl border text-sm ${rowBg}`}>
             <span className={`font-semibold ${textHead}`}>{label}</span>
@@ -71,7 +75,7 @@ const SimpleMetaRow = ({ Icon, color, label, value, textHead, rowBg }) => (
     </div>
 );
 
-/* â”€â”€â”€ Main Component â”€â”€â”€ */
+/* Main Component */
 const Prediction = () => {
     const { isDark } = useTheme();
 
@@ -91,12 +95,32 @@ const Prediction = () => {
 
     const livePropMult = PROPERTY_TYPE_MULT[form.property_type] ?? 1;
     const liveFurnMult = FURNISHING_MULT[form.furnishing]       ?? 1;
+    const liveLocMult  = LOCATION_MULT[form.location]           ?? 1;
     const liveFloorMul = floorMult(form.num_floors);
-    const liveTotalMul = livePropMult * liveFurnMult * liveFloorMul;
+    const liveTotalMul = livePropMult * liveFurnMult * liveFloorMul * liveLocMult;
+
+    /* Minimum allowed values per field */
+    const FIELD_MIN = {
+        area_sqft: 1, property_age: 0, num_bedrooms: 1,
+        num_bathrooms: 1, num_floors: 1,
+    };
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+        if (type === 'checkbox') {
+            setForm(prev => ({ ...prev, [name]: checked }));
+            return;
+        }
+        /* Clamp numeric inputs — prevent negative values instantly */
+        const min = FIELD_MIN[name];
+        if (min !== undefined && value !== '') {
+            const num = parseFloat(value);
+            if (!isNaN(num) && num < min) {
+                setForm(prev => ({ ...prev, [name]: String(min) }));
+                return;
+            }
+        }
+        setForm(prev => ({ ...prev, [name]: value }));
     };
 
     const handleSubmit = async (e) => {
@@ -117,7 +141,7 @@ const Prediction = () => {
                 furnishing:      form.furnishing,
                 property_type:   form.property_type,
             };
-            const response = await axios.post('http://localhost:5000/api/predict', payload);
+            const response = await axios.post('/api/predict', payload);
             setResult(response.data.data);
         } catch (err) {
             setError(err.response?.data?.error || 'Backend offline. Check your server.');
@@ -133,19 +157,19 @@ const Prediction = () => {
             {/* Header */}
             <header className="space-y-3 max-w-3xl">
                 <p className="text-xs font-black uppercase tracking-[0.3em] text-brand-500 flex items-center gap-2">
-                    <TrendingUp size={14} /> Predictive Valuation Engine â€” INR
+                    <TrendingUp size={14} /> Predictive Valuation Engine
                 </p>
                 <h1 className={`text-5xl md:text-6xl font-black tracking-tighter leading-[0.9] ${textHead}`}>
                     ESTIMATE HOUSE <span className="text-brand-500">PRICE</span>
                 </h1>
                 <p className={`text-lg font-medium ${textMuted}`}>
-                    Property Type, Furnishing, and Floors directly adjust the final estimate. All prices in <strong className="text-brand-500">Indian Rupees (â‚¹)</strong>.
+                    Property Type, Furnishing, and Floors directly adjust the final estimate. All prices in <strong className="text-brand-500">Indian Rupees (&#8377;)</strong>.
                 </p>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
 
-                {/* â”€â”€ FORM â”€â”€ */}
+                {/* FORM */}
                 <div className="lg:col-span-7">
                     <div className="glass rounded-3xl overflow-hidden shadow-2xl">
                         <form onSubmit={handleSubmit}>
@@ -154,19 +178,18 @@ const Prediction = () => {
                             <div className={`p-8 border-b ${divider}`}>
                                 <SectionTitle letter="A" color="bg-brand-500/20 text-brand-400" label={<><Ruler size={16} /> Physical Dimensions</>} />
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
-                                    <Field label="Total Area (sqft)"    name="area_sqft"     value={form.area_sqft}     onChange={handleChange} placeholder="1500" textMuted={textMuted} />
-                                    <Field label="Property Age (Years)" name="property_age"  value={form.property_age}  onChange={handleChange} placeholder="5"    textMuted={textMuted} />
-                                    <Field label="Bedrooms"             name="num_bedrooms"  value={form.num_bedrooms}  onChange={handleChange} placeholder="3"    textMuted={textMuted} />
-                                    <Field label="Bathrooms"            name="num_bathrooms" value={form.num_bathrooms} onChange={handleChange} placeholder="2"    textMuted={textMuted} />
+                                    <Field label="Total Area (sqft)"    name="area_sqft"     value={form.area_sqft}     onChange={handleChange} placeholder="1500" min="1"  textMuted={textMuted} />
+                                    <Field label="Property Age (Years)" name="property_age"  value={form.property_age}  onChange={handleChange} placeholder="5"    min="0"  textMuted={textMuted} />
+                                    <Field label="Bedrooms"             name="num_bedrooms"  value={form.num_bedrooms}  onChange={handleChange} placeholder="3"    min="1"  textMuted={textMuted} />
+                                    <Field label="Bathrooms"            name="num_bathrooms" value={form.num_bathrooms} onChange={handleChange} placeholder="2"    min="1"  textMuted={textMuted} />
                                 </div>
                             </div>
 
-                            {/* Section B â€” Pricing Parameters */}
+                            {/* Section B - Pricing Parameters */}
                             <div className={`p-8 border-b ${divider}`}>
-                                <SectionTitle letter="B" color="bg-sky-500/20 text-sky-400" label={<><MapPin size={16} /> Pricing Parameters</>} note="âš¡ Adjusts the final â‚¹ price" />
+                                <SectionTitle letter="B" color="bg-sky-500/20 text-sky-400" label={<><MapPin size={16} /> Pricing Parameters</>} note="Adjusts the final price" />
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
-                                    {/* Property Type */}
                                     <div className="space-y-2">
                                         <label className={`block text-xs font-black uppercase tracking-widest ${textMuted}`}>Property Type</label>
                                         <select name="property_type" value={form.property_type} onChange={handleChange} className="field">
@@ -177,7 +200,6 @@ const Prediction = () => {
                                         <MultiplierBadge mult={livePropMult} />
                                     </div>
 
-                                    {/* Furnishing */}
                                     <div className="space-y-2">
                                         <label className={`block text-xs font-black uppercase tracking-widest ${textMuted}`}>Furnishing Status</label>
                                         <select name="furnishing" value={form.furnishing} onChange={handleChange} className="field">
@@ -188,22 +210,21 @@ const Prediction = () => {
                                         <MultiplierBadge mult={liveFurnMult} />
                                     </div>
 
-                                    {/* Floors */}
                                     <div className="space-y-2">
                                         <label className={`block text-xs font-black uppercase tracking-widest ${textMuted}`}>Number of Floors</label>
                                         <input type="number" name="num_floors" min="1" max="20" value={form.num_floors} onChange={handleChange} placeholder="1" className="field" />
                                         <MultiplierBadge mult={liveFloorMul} note="+3.5% per extra floor" />
                                     </div>
 
-                                    {/* Location */}
                                     <div className="space-y-2">
                                         <label className={`block text-xs font-black uppercase tracking-widest ${textMuted}`}>Location Zone</label>
                                         <select name="location" value={form.location} onChange={handleChange} className="field">
-                                            <option value="Urban">Urban City Centre</option>
-                                            <option value="Suburban">Suburban Residential</option>
-                                            <option value="Downtown">Premium Downtown</option>
-                                            <option value="Rural">Rural Outskirts</option>
+                                            <option value="Urban">Urban City Centre ({LOCATION_MULT.Urban > 1 ? '+' : ''}{((LOCATION_MULT.Urban - 1) * 100).toFixed(0)}%)</option>
+                                            <option value="Suburban">Suburban Residential ({LOCATION_MULT.Suburban > 1 ? '+' : ''}{((LOCATION_MULT.Suburban - 1) * 100).toFixed(0)}%)</option>
+                                            <option value="Downtown">Premium Downtown ({LOCATION_MULT.Downtown > 1 ? '+' : ''}{((LOCATION_MULT.Downtown - 1) * 100).toFixed(0)}%)</option>
+                                            <option value="Rural">Rural Outskirts ({LOCATION_MULT.Rural > 1 ? '+' : ''}{((LOCATION_MULT.Rural - 1) * 100).toFixed(0)}%)</option>
                                         </select>
+                                        <MultiplierBadge mult={liveLocMult} />
                                     </div>
                                 </div>
 
@@ -216,7 +237,7 @@ const Prediction = () => {
                                 </div>
                             </div>
 
-                            {/* Section C â€” Submit */}
+                            {/* Section C - Submit */}
                             <div className="p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
                                 <label className="flex items-center gap-4 cursor-pointer select-none">
                                     <button
@@ -244,11 +265,11 @@ const Prediction = () => {
                     </div>
                 </div>
 
-                {/* â”€â”€ RESULT PANEL â”€â”€ */}
+                {/* RESULT PANEL */}
                 <div className="lg:col-span-5 sticky top-24 space-y-6">
                     <AnimatePresence mode="wait">
 
-                        {/* â”€â”€â”€ Success State â”€â”€â”€ */}
+                        {/* Success State */}
                         {result ? (
                             <motion.div key="result"
                                 initial={{ opacity: 0, scale: 0.96, y: 20 }}
@@ -267,7 +288,7 @@ const Prediction = () => {
                                 </div>
 
                                 <div className="p-8 space-y-6">
-                                    {/* --- PRICE IN INR --- */}
+                                    {/* Price in INR */}
                                     <div>
                                         <p className={`text-xs font-black uppercase tracking-[0.3em] mb-1 ${textMuted}`}>
                                             Estimated Market Value
@@ -288,16 +309,20 @@ const Prediction = () => {
                                                 value={compactINR(baseINR)}
                                                 textHead={textHead} rowBg={rowBg}
                                             />
-                                            <BreakdownRow label={`Property Type — ${result.inputData?.property_type}`}
+                                            <BreakdownRow label={`Property Type - ${result.inputData?.property_type}`}
                                                 value={result.breakdown.propertyTypeAdj}
                                                 highlight textHead={textHead} rowBg={rowBg}
                                             />
-                                            <BreakdownRow label={`Furnishing — ${result.inputData?.furnishing}`}
+                                            <BreakdownRow label={`Furnishing - ${result.inputData?.furnishing}`}
                                                 value={result.breakdown.furnishingAdj}
                                                 highlight textHead={textHead} rowBg={rowBg}
                                             />
-                                            <BreakdownRow label={`Floors — ${result.inputData?.num_floors} floor(s)`}
+                                            <BreakdownRow label={`Floors - ${result.inputData?.num_floors} floor(s)`}
                                                 value={result.breakdown.floorsAdj}
+                                                highlight textHead={textHead} rowBg={rowBg}
+                                            />
+                                            <BreakdownRow label={`Location - ${result.inputData?.location}`}
+                                                value={result.breakdown.locationAdj}
                                                 highlight textHead={textHead} rowBg={rowBg}
                                             />
                                         </div>
@@ -305,8 +330,8 @@ const Prediction = () => {
 
                                     {/* Metadata */}
                                     <div className={`space-y-3 pt-4 border-t ${divider}`}>
-                                        <SimpleMetaRow Icon={Layers}    color="text-brand-400 bg-brand-500/10" label="Algorithm" value={result.modelUsed}                            textHead={textHead} rowBg={rowBg} />
-                                        <SimpleMetaRow Icon={Briefcase} color="text-amber-400 bg-amber-500/10" label="Model R2"  value={`${(result.accuracy * 100).toFixed(2)}%`}    textHead={textHead} rowBg={rowBg} />
+                                        <SimpleMetaRow Icon={Layers}    color="text-brand-400 bg-brand-500/10" label="Algorithm" value={result.modelUsed}                         textHead={textHead} rowBg={rowBg} />
+                                        <SimpleMetaRow Icon={Briefcase} color="text-amber-400 bg-amber-500/10" label="Model R2"  value={`${(result.accuracy * 100).toFixed(2)}%`} textHead={textHead} rowBg={rowBg} />
                                     </div>
 
                                     <button className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl border font-bold text-sm transition-all
@@ -318,7 +343,7 @@ const Prediction = () => {
                             </motion.div>
 
                         ) : error ? (
-                        /* â”€â”€â”€ Error State â”€â”€â”€ */
+                        /* Error State */
                             <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                                 className="glass rounded-3xl p-8 border border-rose-500/20 bg-rose-500/5 text-center space-y-4"
                             >
@@ -330,7 +355,7 @@ const Prediction = () => {
                             </motion.div>
 
                         ) : (
-                        /* â”€â”€â”€ Idle State with Live Preview â”€â”€â”€ */
+                        /* Idle State */
                             <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                                 className={`glass rounded-3xl flex flex-col items-center justify-center text-center p-10 border-dashed border-2 ${isDark ? 'border-white/10' : 'border-slate-300'}`}
                                 style={{ minHeight: '560px' }}
@@ -342,6 +367,7 @@ const Prediction = () => {
                                         {[
                                             ['Property',     form.property_type, livePropMult],
                                             ['Furnishing',   form.furnishing,    liveFurnMult],
+                                            ['Location',     form.location,      liveLocMult],
                                             [`${form.num_floors} Floor(s)`, '',  liveFloorMul],
                                         ].map(([label, sub, mult]) => {
                                             const adj = adjLabel(mult);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
     AreaChart, Area, BarChart, Bar, Cell,
@@ -33,8 +33,8 @@ const Dashboard = () => {
         setLoading(true);
         try {
             const [histRes, statRes] = await Promise.all([
-                axios.get('http://localhost:5000/api/history'),
-                axios.get('http://localhost:5000/api/stats')
+                axios.get('/api/history'),
+                axios.get('/api/stats')
             ]);
             setHistory(histRes.data.data);
             setStats(statRes.data.data);

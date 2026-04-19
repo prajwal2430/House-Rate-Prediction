@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Shield, Cpu, Database, Globe, Zap, ArrowUpRight, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -17,14 +17,14 @@ const Home = () => {
     return (
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-16 space-y-32">
 
-            {/* â”€â”€ Hero â”€â”€ */}
+            {/* Hero */}
             <section className="flex flex-col lg:flex-row items-center gap-16">
                 <motion.div
                     initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
                     className="flex-1 space-y-8"
                 >
                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-500 text-xs font-black uppercase tracking-widest">
-                        <Activity size={12} className="animate-pulse" /> Neural ML Engine â€” Active
+                        <Activity size={12} className="animate-pulse" /> Neural ML Engine &mdash; Active
                     </div>
 
                     <h1 className={`text-6xl lg:text-7xl font-black leading-[0.9] tracking-tighter ${textHead}`}>
@@ -34,7 +34,7 @@ const Home = () => {
                     </h1>
 
                     <p className={`text-xl font-medium leading-relaxed max-w-xl ${textMuted}`}>
-                        Instantly estimate property values using a high-accuracy ML engine trained on thousands of real-world data points. No guesswork â€” pure data science.
+                        Instantly estimate property values using a high-accuracy ML engine trained on thousands of real-world data points. No guesswork &mdash; pure data science.
                     </p>
 
                     <div className="flex flex-wrap gap-4">
@@ -52,7 +52,7 @@ const Home = () => {
                     </div>
 
                     <div className={`pt-8 grid grid-cols-2 gap-8 border-t ${isDark ? 'border-white/5' : 'border-slate-200'}`}>
-                        {[['Â±1.2%', 'Prediction Variance'], ['9,000+', 'Dataset Records']].map(([val, label]) => (
+                        {[['+/- 1.2%', 'Prediction Variance'], ['9,000+', 'Dataset Records']].map(([val, label]) => (
                             <div key={label}>
                                 <p className={`text-4xl font-black italic ${textHead}`}>{val}</p>
                                 <p className={`text-xs font-bold uppercase tracking-widest mt-1 ${textMuted}`}>{label}</p>
@@ -76,14 +76,14 @@ const Home = () => {
                     {/* Float card */}
                     <div className="absolute -bottom-8 -left-8 glass rounded-2xl px-8 py-6 shadow-xl">
                         <p className="text-[10px] font-black text-brand-500 uppercase tracking-widest mb-1">Assets Analysed</p>
-                        <p className={`text-3xl font-black italic ${textHead}`}>₹35,000 Cr<span className={`text-base font-medium ml-1 ${textMuted}`}>tracked</span></p>
+                        <p className={`text-3xl font-black italic ${textHead}`}>&#8377;35,000 Cr<span className={`text-base font-medium ml-1 ${textMuted}`}>tracked</span></p>
                     </div>
                     {/* Glow */}
                     <div className="absolute inset-0 bg-brand-500/10 blur-[100px] rounded-full -z-10 group-hover:bg-brand-500/15 transition-all duration-700"></div>
                 </motion.div>
             </section>
 
-            {/* â”€â”€ Tech Strip â”€â”€ */}
+            {/* Tech Strip */}
             <section className={`flex flex-wrap justify-between items-center gap-10 py-12 border-y transition-all
                 ${isDark ? 'border-white/5' : 'border-slate-200'}`}
             >
@@ -95,11 +95,11 @@ const Home = () => {
                 ))}
             </section>
 
-            {/* â”€â”€ Features â”€â”€ */}
+            {/* Features */}
             <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {[
                     { Icon: Cpu,      colour: 'text-brand-400',   bg: 'bg-brand-500/10',   title: 'Multi-Algorithm Engine',   desc: '5 algorithms run simultaneously. The highest-accuracy model is automatically selected to generate your estimate.' },
-                    { Icon: Shield,   colour: 'text-emerald-400', bg: 'bg-emerald-500/10', title: 'Confidence Certification',  desc: 'Every prediction includes an RÂ² confidence index and full model metadata for absolute transparency.' },
+                    { Icon: Shield,   colour: 'text-emerald-400', bg: 'bg-emerald-500/10', title: 'Confidence Certification',  desc: 'Every prediction includes an R2 confidence index and full model metadata for absolute transparency.' },
                     { Icon: Database, colour: 'text-sky-400',     bg: 'bg-sky-500/10',     title: 'Persistent History Log',   desc: 'All valuations are stored in MongoDB, giving you a structured timeline to track market shifts over time.' }
                 ].map(({ Icon, colour, bg, title, desc }) => (
                     <div key={title} className={`${card} group space-y-5`}>
@@ -115,7 +115,7 @@ const Home = () => {
                 ))}
             </section>
 
-            {/* â”€â”€ CTA â”€â”€ */}
+            {/* CTA */}
             <section>
                 <motion.div
                     initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
