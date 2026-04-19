@@ -73,10 +73,18 @@ const floorMult = (n) => 1 + Math.max(0, parseInt(n, 10) - 1) * 0.035;
 //  Routes
 // ─────────────────────────────────────────────────────────
 
-// POST /api/predict
-app.post('/api/predict', async (req, res) => {
+// POST /predict (fallbacks for Vercel routing)
+app.post(['/api/predict', '/predict', '/api/index.js/predict'], async (req, res) => {
     try {
-        await connectDB();
+        // Try to connect to DB, but don't fail the prediction if it fails
+        let dbOk = false;
+        try {
+            await connectDB();
+            dbOk = true;
+        } catch (dbErr) {
+            console.error('MongoDB skipped:', dbErr.message);
+        }
+
         const inputData = req.body;
 
         // 1. ML base prediction
@@ -98,35 +106,46 @@ app.post('/api/predict', async (req, res) => {
             totalMultiplier: (propMult * furnMult * flrMult * locMult).toFixed(4),
         };
 
-        // 3. Save to MongoDB
-        const record = await Prediction.create({
+        const responseData = {
             inputData,
             prediction: finalPrice,
-            modelUsed:  MODEL_NAME,
+            modelUsed:  dbOk ? MODEL_NAME : `${MODEL_NAME} (Offline Mode)`,
             accuracy:   R2_SCORE,
             breakdown,
-        });
+        };
 
-        res.status(200).json({ success: true, data: record });
+        // 3. Save to MongoDB if available
+        if (dbOk) {
+            try {
+                await Prediction.create(responseData);
+            } catch (ignore) {}
+        }
+
+        res.status(200).json({ success: true, data: responseData });
     } catch (err) {
         console.error('Predict error:', err.message);
         res.status(500).json({ success: false, error: err.message });
     }
 });
 
-// GET /api/history
-app.get('/api/history', async (req, res) => {
+// GET /history (fallbacks for Vercel)
+app.get(['/api/history', '/history', '/api/index.js/history'], async (req, res) => {
     try {
-        await connectDB();
-        const history = await Prediction.find().sort({ createdAt: -1 }).limit(20);
+        let history = [];
+        try {
+            await connectDB();
+            history = await Prediction.find().sort({ createdAt: -1 }).limit(20);
+        } catch (dbErr) {
+            console.error('History skipped (No DB):', dbErr.message);
+        }
         res.status(200).json({ success: true, count: history.length, data: history });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
 });
 
-// GET /api/stats
-app.get('/api/stats', async (_req, res) => {
+// GET /stats (fallbacks for Vercel)
+app.get(['/api/stats', '/stats', '/api/index.js/stats'], async (_req, res) => {
     res.status(200).json({
         success: true,
         data: {
@@ -144,7 +163,7 @@ app.get('/api/stats', async (_req, res) => {
 });
 
 // Health check
-app.get('/api/health', (_req, res) => {
+app.get(['/api/health', '/health', '/api/index.js', '*'], (_req, res) => {
     res.json({ status: 'ok', engine: 'SmartHouse JS ML Engine v1.0' });
 });
 
