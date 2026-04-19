@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SmartHouse AI — Precision Property Valuation</title>
+    <meta name="description" content="AI-powered house price prediction with multi-algorithm ML engine. Get instant, accurate property valuations.">
+
+    <!-- Tailwind CSS with dark mode -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Plus Jakarta Sans', 'sans-serif'],
+            },
+            colors: {
+              brand: {
+                50:  '#eef2ff',
+                100: '#e0e7ff',
+                400: '#818cf8',
+                500: '#6366f1',
+                600: '#4f46e5',
+                700: '#4338ca',
+                900: '#1e1b4b',
+              }
+            },
+            boxShadow: {
+              glow: '0 0 30px rgba(99,102,241,0.3)',
+              'glow-lg': '0 0 60px rgba(99,102,241,0.2)',
+            }
+          }
+        }
+      }
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,700;1,800&display=swap" rel="stylesheet">
+
+    <style>
+      /* ── Base Reset ── */
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      html { -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
+
+      /* ── Dark Theme ── */
+      html.dark {
+        --bg:         #050c1b;
+        --bg-card:    rgba(12, 22, 48, 0.75);
+        --border:     rgba(255, 255, 255, 0.07);
+        --text:       #f1f5f9;
+        --text-muted: #64748b;
+        --ring:       rgba(99,102,241,0.25);
+        color-scheme: dark;
+      }
+      html.dark body {
+        background-color: #050c1b;
+        background-image:
+          radial-gradient(ellipse 60% 40% at 0% 0%,   rgba(79,70,229,0.14) 0%, transparent 70%),
+          radial-gradient(ellipse 50% 40% at 100% 100%, rgba(6,182,212,0.09) 0%, transparent 70%);
+        color: #f1f5f9;
+      }
+
+      /* ── Light Theme ── */
+      html.light {
+        --bg:         #f1f5f9;
+        --bg-card:    rgba(255,255,255,0.75);
+        --border:     rgba(0,0,0,0.08);
+        --text:       #0f172a;
+        --text-muted: #64748b;
+        --ring:       rgba(99,102,241,0.2);
+        color-scheme: light;
+      }
+      html.light body {
+        background-color: #f1f5f9;
+        background-image:
+          radial-gradient(ellipse 60% 40% at 0% 0%,   rgba(99,102,241,0.08) 0%, transparent 70%),
+          radial-gradient(ellipse 50% 40% at 100% 100%, rgba(6,182,212,0.06) 0%, transparent 70%);
+        color: #0f172a;
+      }
+
+      /* ── Glass Card ── */
+      body { font-family: 'Plus Jakarta Sans', sans-serif; min-height: 100vh; transition: background-color 0.4s ease, color 0.4s ease; }
+
+      .glass {
+        background: var(--bg-card);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--border);
+        transition: background 0.4s ease, border-color 0.4s ease;
+      }
+
+      /* ── Input Field ── */
+      .field {
+        width: 100%;
+        background: rgba(0,0,0,0.15);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 1rem 1.25rem;
+        border-radius: 0.875rem;
+        font-size: 1rem;
+        font-weight: 600;
+        outline: none;
+        transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
+        font-family: inherit;
+      }
+      html.light .field {
+        background: rgba(241,245,249,0.8);
+        color: #0f172a;
+      }
+      .field:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 4px var(--ring);
+        background: rgba(99,102,241,0.05);
+      }
+      .field option { background: #0f172a; color: #f1f5f9; }
+      html.light .field option { background: #ffffff; color: #0f172a; }
+
+      /* ── Theme Toggle Pill ── */
+      .theme-pill {
+        width: 52px; height: 28px;
+        border-radius: 999px;
+        display: flex; align-items: center;
+        padding: 4px;
+        cursor: pointer;
+        transition: background 0.35s ease, box-shadow 0.35s ease;
+        border: none;
+        outline: none;
+      }
+      .theme-pill.dark-mode  { background: #6366f1; box-shadow: 0 0 14px rgba(99,102,241,0.5); }
+      .theme-pill.light-mode { background: #e2e8f0; box-shadow: inset 0 0 4px rgba(0,0,0,0.1); }
+      .theme-pill .knob {
+        width: 20px; height: 20px; border-radius: 50%;
+        background: white; box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+        transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+      }
+      .theme-pill.dark-mode  .knob { transform: translateX(24px); }
+      .theme-pill.light-mode .knob { transform: translateX(0); }
+
+      /* ── Gradient Text ── */
+      .grad { background: linear-gradient(135deg, #818cf8, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+      /* ── Scrollbar ── */
+      ::-webkit-scrollbar { width: 6px; } 
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.35); border-radius: 3px; }
+
+      /* ── Transition all theme-affected elements ── */
+      header, footer, nav, section, aside, main, article {
+        transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
